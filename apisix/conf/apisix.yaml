@@ -1,0 +1,92 @@
+#
+# Copyright The Apache Software Foundation
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+
+# limitations under the License.
+#
+apisix:
+  node_listen: 9080
+  enable_admin: false
+  enable_debug: true
+
+consumers:
+  - username: odrl_user
+    plugins:
+      jwt-auth:
+        key: a-secure-key-for-testing
+        algorithm: HS256
+
+routes:
+  - uri: /
+    upstream_id: frontend_service
+
+  - uri: /auth/token
+    plugins:
+      serverless-pre-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+                local core = require("apisix.core")
+                local cjson = require("cjson.safe")
+                local request_body = core.request.get_body()
+                if not request_body then
+                    core.response.exit(400, { message = "Missing request body" })
+                    return
+                end
+                local body, err = cjson.decode(request_body)
+                if err then
+                    core.response.exit(400, { message = "Invalid JSON format" })
+                    return
+                end
+
+                local presented_attributes = body.credentials and body.credentials[1] and body.credentials[1].presentedAttributes
+                if not presented_attributes then
+                    core.response.exit(400, { message = "Missing presentedAttributes in credentials" })
+                    return
+                end
+
+                local role = presented_attributes.role
+                local gemeente = presented_attributes.gemeente
+
+                if not role or not gemeente then
+                    core.response.exit(400, { message = "Missing 'role' or 'gemeente' in presentedAttributes" })
+                    return
+                end
+                
+                core.request.set_header("key", "odrl_user")
+                core.request.set_header("payload", "{\"role\":\""..role.."\",\"gemeente\":\""..gemeente.."\"}")
+            end
+      jwt-auth:
+        key: "dummy-key" 
+    upstream:
+      nodes:
+        "127.0.0.1:1984": 1
+      type: roundrobin
+
+  - uri: /data/test
+    plugins:
+      jwt-auth: {}
+    upstream_id: pap_service
+
+upstreams:
+  - id: pap_service
+    nodes:
+      "pap:3000": 1
+    type: roundrobin
+  
+  - id: frontend_service
+    nodes:
+      "frontend:80": 1
+    type: roundrobin
+#END

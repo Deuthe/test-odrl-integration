@@ -1,0 +1,183 @@
+--- FILE: ./docker-compose.yml ---
+services:
+  apisix:
+    image: apache/apisix:3.8.0-debian
+    restart: always
+    volumes:
+      - ./apisix/conf/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    environment:
+      - APISIX_STAND_ALONE=true
+    ports:
+      - "9080:9080"
+    depends_on:
+      - opa
+
+  opa:
+    image: openpolicyagent/opa:0.70.0
+    command: ["run", "--server", "--addr", ":8181", "/policies"]
+    volumes:
+      - ./policies:/policies:ro
+    ports:
+      - "8181:8181"
+
+  pap:
+    build: ./pap
+    ports:
+      - "3000:3000"
+    depends_on:
+      - opa
+
+  mock-data:
+    container_name: mock-data
+    image: nginx:1.27
+    volumes:
+      - ./mock-data/index.html:/usr/share/nginx/html/index.html:ro
+    ports:
+      - "8080:80"
+
+
+
+--- FILE: ./pap/server.js ---
+const express = require('express');
+const axios = require('axios');
+const app = express();
+app.use(express.json());
+
+app.post('/policies', async (req, res) => {
+  const odrl = req.body;
+  let constraints = '';
+  odrl.permission?.forEach(p => {
+    p.constraint?.forEach(c => {
+      constraints += `    input.attributes["${c.leftOperand}"] == "${c.rightOperand}"\n`;
+    });
+  });
+
+  const rego = [
+    'package httpauthz',
+    '',
+    'default allow := false',
+    '',
+    'allow {',
+    constraints.trim(),
+    '    input.method == "GET"',
+    '    startswith(input.path, "/data/")',
+    '}'
+  ].join('\n');
+
+  try {
+    await axios.put(
+      'http://opa:8181/v1/policies/eindhoven',
+      rego,
+      { headers: { 'Content-Type': 'text/plain' } }
+    );
+
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data || e.message });
+  }
+}); // <--- THIS CLOSES app.post('/policies')
+
+app.get('/data/test', async (req, res) => {
+  const input = {
+    method: "GET",
+    path: "/data/test",
+    attributes: {
+      role: req.headers['x-attributes-role'],
+      gemeente: req.headers['x-attributes-gemeente']
+    }
+  };
+
+  try {
+    const opaResp = await axios.post('http://opa:8181/v1/data/httpauthz/allow', { input });
+    if (opaResp.data.result) {
+      const mockResp = await axios.get('http://mock-data/');
+      res.set('Content-Type', 'text/html').send(mockResp.data);
+    } else {
+      res.status(403).send('Forbidden by ODRL policy');
+    }
+  } catch (e) {
+    res.status(500).send('OPA error');
+  }
+});
+
+app.listen(3000, () => console.log('PAP running'));
+
+
+
+--- FILE: ./pap/Dockerfile ---
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install express axios
+COPY server.js .
+EXPOSE 3000
+CMD ["node", "server.js"]
+
+
+
+--- FILE: ./apisix/start.sh ---
+#!/bin/sh
+echo "Waiting for mock-data to be ready..."
+until nc -z mock-data 80; do
+  sleep 1
+done
+echo "mock-data ready — starting APISIX"
+exec /docker-entrypoint.sh apisix start
+
+
+
+--- FILE: ./apisix/conf/apisix.yaml ---
+routes:
+  - uri: /*
+    upstream:
+      nodes:
+        "mock-data:80": 1
+      type: roundrobin
+# ... (rest of your config)
+
+#END
+
+
+
+--- FILE: ./policies/eindhoven-ict.json ---
+{
+  "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "@type": "Offer",
+  "uid": "eindhoven-ict-2025",
+  "permission": [
+    {
+      "action": "read",
+      "target": "http://datastor/datasets/*",
+      "constraint": [
+        { "leftOperand": "role", "operator": "eq", "rightOperand": "ICT" },
+        { "leftOperand": "gemeente", "operator": "eq", "rightOperand": "Eindhoven" }
+      ]
+    }
+  ]
+}
+
+
+
+--- FILE: ./mock-data/index.html ---
+<!DOCTYPE html>
+<html>
+<head><title>ODRL ALLOWED</title></head>
+<body>
+<h1>ACCESS GRANTED</h1>
+<p>You are an ICT member from Eindhoven.</p>
+<p>This proves the entire green ODRL stack works:</p>
+<ul>
+  <li>APISIX (PEP) — stable</li>
+  <li>OPA (PDP) — enforced policy</li>
+  <li>PAP — loaded policy</li>
+  <li>Paradym-ready headers</li>
+</ul>
+<p>Eindhoven → Europe</p>
+</body>
+</html>
+
+
+
+--- FILE: ./repo_dump.txt ---
+
+
+

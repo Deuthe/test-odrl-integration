@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ODRL Test Dashboard</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        textarea { width: 100%; height: 200px; }
+        button { margin-top: 1em; padding: 0.5em 1em; }
+        pre { background-color: #f4f4f4; padding: 1em; border: 1px solid #ccc; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>ODRL Test Dashboard</h1>
+
+    <h2>Step 1: Paste Paradym Wallet Data</h2>
+    <textarea id="walletData" placeholder="Paste the JSON from your Paradym wallet here..."></textarea>
+
+    <button id="getJwtBtn">Get JWT</button>
+
+    <h2>Step 2: Test the Protected Endpoint</h2>
+    <p>Your JWT: <code id="jwtDisplay"></code></p>
+    <button id="testEndpointBtn" disabled>Test Endpoint</button>
+
+    <h2>Result</h2>
+    <pre id="result"></pre>
+
+    <script>
+        const walletDataEl = document.getElementById('walletData');
+        const getJwtBtn = document.getElementById('getJwtBtn');
+        const jwtDisplayEl = document.getElementById('jwtDisplay');
+        const testEndpointBtn = document.getElementById('testEndpointBtn');
+        const resultEl = document.getElementById('result');
+
+        let jwtToken = null;
+
+        // Pre-fill with example data
+        walletDataEl.value = JSON.stringify({
+            "id": "cmhsznz1b007ps601gtpbtnav",
+            "credentials": [
+                {
+                    "presentedAttributes": {
+                        "role": "ICT",
+                        "gemeente": "Eindhoven"
+                    }
+                }
+            ]
+        }, null, 2);
+
+        getJwtBtn.addEventListener('click', async () => {
+            const rawData = walletDataEl.value;
+            try {
+                const data = JSON.parse(rawData);
+                resultEl.textContent = 'Requesting JWT...';
+
+                const response = await fetch('/auth/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const res = await response.json();
+                if (response.ok) {
+                    jwtToken = res.token;
+                    jwtDisplayEl.textContent = jwtToken;
+                    testEndpointBtn.disabled = false;
+                    resultEl.textContent = 'JWT received successfully.';
+                } else {
+                    resultEl.textContent = `Error getting JWT: ${JSON.stringify(res, null, 2)}`;
+                }
+            } catch (error) {
+                resultEl.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        testEndpointBtn.addEventListener('click', async () => {
+            if (!jwtToken) {
+                resultEl.textContent = 'Please get a JWT first.';
+                return;
+            }
+
+            resultEl.textContent = 'Testing /data/test endpoint...';
+
+            try {
+                const response = await fetch('/data/test', {
+                    headers: {
+                        'Authorization': `Bearer ${jwtToken}`
+                    }
+                });
+
+                const res = await response.json();
+                resultEl.textContent = JSON.stringify(res, null, 2);
+            } catch (error) {
+                resultEl.textContent = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

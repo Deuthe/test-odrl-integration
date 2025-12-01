@@ -1,0 +1,10 @@
+{
+  "dataspace_id": "eindhoven-green-01",
+  "asset_id": "energy-consumption-2025",
+  "status": "active",
+  "payload": {
+    "kwh": 450.5,
+    "region": "strijp-s",
+    "timestamp": "2025-11-24T11:31:06Z"
+  }
+}

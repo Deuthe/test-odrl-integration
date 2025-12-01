@@ -1,0 +1,41 @@
+services:
+  apisix:
+    image: apache/apisix:3.8.0-debian
+    restart: always
+    volumes:
+      - ./apisix/conf/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    environment:
+      - APISIX_STAND_ALONE=true
+    ports:
+      - "9080:9080"
+    depends_on:
+      - opa
+
+  opa:
+    image: openpolicyagent/opa:0.70.0
+    command: ["run", "--server", "--addr", ":8181", "/policies"]
+    volumes:
+      - ./policies:/policies:ro
+    ports:
+      - "8181:8181"
+
+  pap:
+    build: ./pap
+    ports:
+      - "3000:3000"
+    depends_on:
+      - opa
+
+  mock-data:
+    container_name: mock-data
+    image: nginx:1.27
+    volumes:
+      # MOUNT CHANGE: Mapping data.json instead of index.html
+      - ./mock-data/data.json:/usr/share/nginx/html/data.json:ro
+    ports:
+      - "8080:80"
+
+  frontend:
+    image: nginx:1.27
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
