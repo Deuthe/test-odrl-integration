@@ -1,0 +1,88 @@
+{
+  "routes": {
+    "total": 1,
+    "list": [
+      {
+        "value": {
+          "id": "00000000000000000018",
+          "upstream_id": "00000000000000000016",
+          "plugins": {
+            "opa": {
+              "policy": "httpauthz/allow",
+              "request_body": {
+                "input": {
+                  "path": "$uri",
+                  "attributes": {
+                    "role": "$jwt_claim_role",
+                    "gemeente": "$jwt_claim_gemeente"
+                  },
+                  "method": "$request_method"
+                }
+              },
+              "host": "http://opa:8181"
+            }
+          },
+          "status": 1,
+          "enable_websocket": false,
+          "create_time": 1764689665,
+          "priority": 0,
+          "name": "data-route",
+          "uri": "data/test",
+          "update_time": 1764689665,
+          "methods": [
+            "GET"
+          ]
+        },
+        "createdIndex": 19,
+        "key": "/apisix/routes/00000000000000000018",
+        "modifiedIndex": 19
+      }
+    ]
+  },
+  "consumers": {
+    "total": 1,
+    "list": [
+      {
+        "value": {
+          "username": "paradym-user",
+          "create_time": 1764688278,
+          "update_time": 1764688278
+        },
+        "createdIndex": 15,
+        "key": "/apisix/consumers/paradym-user",
+        "modifiedIndex": 15
+      }
+    ]
+  },
+  "upstreams": {
+    "total": 1,
+    "list": [
+      {
+        "value": {
+          "id": "00000000000000000016",
+          "scheme": "http",
+          "nodes": [
+            {
+              "priority": 0,
+              "weight": 0,
+              "port": 80,
+              "host": "mock-data"
+            }
+          ],
+          "hash_on": "vars",
+          "create_time": 1764688820,
+          "tls": {
+            "verify": false
+          },
+          "name": "mock-data-service",
+          "type": "roundrobin",
+          "update_time": 1764688820,
+          "pass_host": "pass"
+        },
+        "createdIndex": 17,
+        "key": "/apisix/upstreams/00000000000000000016",
+        "modifiedIndex": 17
+      }
+    ]
+  }
+}

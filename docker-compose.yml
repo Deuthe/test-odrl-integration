@@ -1,15 +1,33 @@
 services:
   apisix:
-    image: apache/apisix:3.8.0-debian
+    image: apache/apisix:latest
     restart: always
-    volumes:
-      - ./apisix/conf/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
     environment:
-      - APISIX_STAND_ALONE=true
+      - APISIX_CONF_CENTER=etcd
+    volumes:
+      - ./apisix/conf/config.yaml:/usr/local/apisix/conf/config.yaml
     ports:
-      - "9088:9080"
+      - "9000:9000" # APISIX Dashboard
+      - "9088:9080" # data plane
+      - "9180:9180" # admin plane
     depends_on:
-      - opa
+      - etcd
+
+
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.1
+    environment:
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+    ports:
+      - "2379:2379"
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health", "--endpoints=http://localhost:2379"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 
   opa:
     image: openpolicyagent/opa:0.70.0
@@ -38,3 +56,5 @@ services:
     image: nginx:1.27
     volumes:
       - ./index.html:/usr/share/nginx/html/index.html:ro
+    ports:
+      - "8081:80"

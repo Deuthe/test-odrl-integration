@@ -4,6 +4,20 @@ const jwt = require('jsonwebtoken');
 const app = express();
 app.use(express.json());
 
+// Add a more robust CORS middleware to handle preflight requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
+    return res.status(200).json({});
+  }
+  
+  next();
+});
+
 const JWT_SECRET = 'a-secure-key-for-testing';
 
 // 1. Policy Upload Endpoint (Unchanged)
@@ -25,9 +39,9 @@ app.post('/policies', async (req, res) => {
   const rego = [
     'package httpauthz',
     '',
-    'default allow := false',
+    'default decision = false', // Changed: use 'decision'
     '',
-    'allow {',
+    'decision = true {', // Changed: use 'decision'
     constraints.trim(),
     '    input.method == "GET"',
     '    startswith(input.path, "/data/")',
@@ -49,7 +63,38 @@ app.post('/policies', async (req, res) => {
   }
 });
 
-// 2. Data Access Endpoint (UPDATED to use JWT)
+// 2. JWT Issuance Endpoint
+app.post('/auth/token', (req, res) => {
+  try {
+    // Safely access nested attributes from the wallet data
+    const attributes = req.body?.credentials?.[0]?.presentedAttributes;
+
+    if (!attributes || !attributes.role || !attributes.gemeente) {
+      return res.status(400).json({ error: "Invalid wallet data: missing role or gemeente attributes" });
+    }
+
+    // Create the JWT payload
+    const payload = {
+      role: attributes.role,
+      gemeente: attributes.gemeente,
+      // This 'key' is crucial for APISIX to identify the consumer
+      key: 'paradym-user'
+    };
+
+    // Sign the token
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+
+    // Return the token to the client
+    res.json({ token });
+
+  } catch (error) {
+    console.error("Token Generation Error:", error.message);
+    res.status(500).json({ error: "Failed to generate token" });
+  }
+});
+
+
+// 3. Data Access Endpoint (UPDATED to use JWT)
 app.get('/data/test', async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -75,7 +120,7 @@ app.get('/data/test', async (req, res) => {
 
   try {
     // Step A: Ask OPA for permission
-    const opaResp = await axios.post('http://opa:8181/v1/data/httpauthz/allow', { input });
+    const opaResp = await axios.post('http://opa:8181/v1/data/httpauthz/decision', { input });
     
     if (opaResp.data.result === true) {
       // Step B: Access Granted - Fetch JSON Data

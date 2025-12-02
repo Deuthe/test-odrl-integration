@@ -1,0 +1,57 @@
+# Project ODRL - Development and Debugging Notes
+
+This document summarizes the steps, bug fixes, and architectural improvements made to the ODRL prototype project.
+
+## 1. Initial Setup & Context
+
+- **Goal:** To get a previously started ODRL-based authorization system working.
+- **Initial State:** The system was partially configured. The core components (APISIX, OPA, PAP, mock-data) were defined in `docker-compose.yml`.
+- **Action:** We established an end-to-end workflow where APISIX would act as a gateway, validating a JWT and using OPA for authorization decisions.
+
+## 2. APISIX Configuration (Dashboard & Admin API)
+
+- **Initial Approach:** We attempted to use the APISIX Dashboard UI to configure the system.
+- **Mistake 1:** The instructions for the dashboard were for a slightly different version. We adapted to the new UI for creating Consumers and Upstreams.
+- **Mistake 2:** A JSON snippet for the JWT consumer had a missing comma, causing a validation error.
+- **Problem:** After using the dashboard, we discovered that the "data-route" had not been saved correctly, even though the consumer and upstream were created.
+- **Solution:** We switched from using the UI to using the APISIX Admin API with `curl` commands. This proved to be more reliable and scriptable.
+
+## 3. Architecture Refactor: Solving a Stubborn Browser Error
+
+- **Problem:** The newly created web dashboard (`index.html`) consistently failed with a generic "Network error: Failed to fetch" when trying to contact the backend services from the browser. My direct `curl` commands, however, were working, proving the backend was functional.
+- **Debugging Journey:**
+    1.  **Initial Fix (CORS):** I identified a Cross-Origin Resource Sharing (CORS) issue because the dashboard (`:8081`), PAP service (`:3000`), and APISIX gateway (`:9088`) were on different ports. I added CORS headers to the `pap` service and the `cors` plugin to APISIX routes. This was not sufficient.
+    2.  **IP Address vs. `localhost`:** You correctly identified that since you were in a VM, `localhost` needed to be replaced with the VM's IP address (`192.168.2.131`) in `index.html`. This was a critical insight.
+    3.  **Final CORS Fix:** The "Failed to fetch" error persisted. The final piece of the CORS puzzle was that our APISIX routes did not accept the browser's preflight `OPTIONS` requests. We patched the routes to include `OPTIONS` in their allowed methods. This finally solved the browser connectivity issue.
+
+- **Architectural Improvement:**
+    - **Initial State:** The dashboard tried to talk to multiple services directly.
+    - **Final State:** We re-architected the system to have the dashboard **only** talk to the APISIX gateway (`:9088`). We created a new route (`/pap/*`) in APISIX to proxy requests to the PAP service. This is a much cleaner and more robust design that eliminates all browser-side CORS issues.
+
+## 4. Deep Backend Debugging (The `503` Errors)
+
+Even when using `curl`, we encountered a series of backend errors that we fixed one by one.
+
+- **Problem 1: `pap` service not updating.**
+  - **Symptom:** The `pap` service returned a `404 Not Found` for the `/auth/token` endpoint we had just added.
+  - **Cause:** `docker compose restart` does not rebuild the image. The container was using an old version of `server.js`.
+  - **Fix:** We used `docker compose build pap` followed by `docker compose up -d pap` to force the container to use the new code.
+
+- **Problem 2: APISIX `opa` Plugin.**
+  - **Symptom:** After fixing the `pap` service, we started getting `503 Service Temporarily Unavailable` errors from APISIX when testing the protected endpoint.
+  - **Cause:** The APISIX logs revealed a bug or a very specific, undocumented requirement in the `opa` plugin. It was complaining `invalid OPA decision format: ... 'result' field does not exist` even when OPA was correctly returning `{"result":true}`.
+  - **Bypass/Solution:** After multiple failed attempts to reformat the OPA policy, we decided to bypass the `opa` plugin in APISIX entirely. We reconfigured the `data-route` to point directly to the `pap` service, letting it handle the OPA query internally (which it was already coded to do).
+
+- **Problem 3: Final `pap` service logic.**
+  - **Symptom:** After bypassing the `opa` plugin, we received a correct `403 Access Denied` for a *valid* user.
+  - **Cause:** The `pap/server.js` was querying OPA for the rule `allow`, but we had changed the rule name to `decision` during debugging.
+  - **Fix:** We updated `pap/server.js` to query OPA for `decision`, rebuilt the image, and restarted the service.
+
+## 5. Finalizing for Portability (GitHub)
+
+To make the project easily reproducible for your teammates, we performed the following actions:
+- Created a `.gitignore` file to exclude `node_modules` and other unnecessary files.
+- Created an idempotent `init-apisix.sh` script to automate the entire APISIX configuration process.
+- Rewrote the `README.md` to provide clear, simple instructions for setup and testing using the new automated script and web dashboard.
+
+The result is a clean, well-documented, and fully functional prototype that can be easily shared and set up on any machine with Docker.

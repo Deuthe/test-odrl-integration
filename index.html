@@ -3,100 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ODRL Test Dashboard</title>
+    <title>ODRL Backend Visualizer</title>
     <style>
-        body { font-family: sans-serif; margin: 2em; }
-        textarea { width: 100%; height: 200px; }
-        button { margin-top: 1em; padding: 0.5em 1em; }
-        pre { background-color: #f4f4f4; padding: 1em; border: 1px solid #ccc; white-space: pre-wrap; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f7f7f7; }
+        .container { max-width: 900px; margin: 2rem auto; padding: 1rem; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 0.5rem; }
+        .step { margin-bottom: 2rem; }
+        .step-header { display: flex; align-items: center; gap: 1rem; }
+        button { font-size: 1rem; padding: 0.5em 1em; border-radius: 6px; border: 1px solid #ccc; background-color: #f0f0f0; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #e0e0e0; }
+        button:disabled { cursor: not-allowed; opacity: 0.5; }
+        select, textarea { font-size: 1rem; padding: 0.5em; border-radius: 6px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+        textarea { height: 120px; font-family: monospace; color: #555; }
+        .output-area { margin-top: 1rem; padding: 1em; border: 1px solid #ddd; border-radius: 6px; background-color: #fafafa; white-space: pre-wrap; font-family: monospace; min-height: 50px; }
+        .log-entry { display: block; margin-bottom: 0.5em; }
+        .log-entry .status { font-weight: bold; }
+        .log-entry .status-success { color: #28a745; }
+        .log-entry .status-fail { color: #dc3545; }
+        .log-entry .status-info { color: #17a2b8; }
+        .log-entry .status-send { color: #ffc107; }
+        .log-entry .status-eval { color: #6f42c1; }
     </style>
 </head>
 <body>
-    <h1>ODRL Test Dashboard</h1>
 
-    <h2>Step 1: Paste Paradym Wallet Data</h2>
-    <textarea id="walletData" placeholder="Paste the JSON from your Paradym wallet here..."></textarea>
+<div class="container">
+    <h1>ODRL Backend Visualizer</h1>
 
-    <button id="getJwtBtn">Get JWT</button>
+    <!-- Step 1: Generate JWT -->
+    <div class="step">
+        <h2>Step 1: Generate JWT</h2>
+        <div class="step-header">
+            <select id="userProfile">
+                <option value="valid">Valid User (role: ICT, gemeente: Eindhoven)</option>
+                <option value="invalid">Invalid User (role: Finance, gemeente: Eindhoven)</option>
+            </select>
+            <button id="getJwtBtn">Get JWT</button>
+        </div>
+        <p>Your JWT:</p>
+        <textarea id="jwtDisplay" readonly placeholder="JWT will appear here..."></textarea>
+    </div>
 
-    <h2>Step 2: Test the Protected Endpoint</h2>
-    <p>Your JWT: <code id="jwtDisplay"></code></p>
-    <button id="testEndpointBtn" disabled>Test Endpoint</button>
+    <!-- Step 2: Test Endpoint -->
+    <div class="step">
+        <h2>Step 2: Test Protected Endpoint</h2>
+        <button id="testEndpointBtn" disabled>Test /data/test</button>
+    </div>
 
-    <h2>Result</h2>
-    <pre id="result"></pre>
+    <!-- Step 3: Backend Log -->
+    <div class="step">
+        <h2>Step 3: Backend Log</h2>
+        <div id="backendLog" class="output-area"></div>
+    </div>
 
-    <script>
-        const walletDataEl = document.getElementById('walletData');
-        const getJwtBtn = document.getElementById('getJwtBtn');
-        const jwtDisplayEl = document.getElementById('jwtDisplay');
-        const testEndpointBtn = document.getElementById('testEndpointBtn');
-        const resultEl = document.getElementById('result');
+    <!-- Step 4: Final Result -->
+    <div class="step">
+        <h2>Step 4: Final Result</h2>
+        <pre id="result" class="output-area"></pre>
+    </div>
+</div>
 
-        let jwtToken = null;
+<script>
+    const getJwtBtn = document.getElementById('getJwtBtn');
+    const testEndpointBtn = document.getElementById('testEndpointBtn');
+    const userProfileEl = document.getElementById('userProfile');
+    const jwtDisplayEl = document.getElementById('jwtDisplay');
+    const backendLogEl = document.getElementById('backendLog');
+    const resultEl = document.getElementById('result');
 
-        // Pre-fill with example data
-        walletDataEl.value = JSON.stringify({
-            "id": "cmhsznz1b007ps601gtpbtnav",
-            "credentials": [
-                {
-                    "presentedAttributes": {
-                        "role": "ICT",
-                        "gemeente": "Eindhoven"
-                    }
-                }
-            ]
-        }, null, 2);
+    const APISIX_GATEWAY = 'http://192.168.2.131:9088';
 
-        getJwtBtn.addEventListener('click', async () => {
-            const rawData = walletDataEl.value;
-            try {
-                const data = JSON.parse(rawData);
-                resultEl.textContent = 'Requesting JWT...';
+    let jwtToken = null;
 
-                // NOTE: Using the new port 9088 for the API calls
-                const response = await fetch('http://localhost:9088/auth/token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
+    const userProfiles = {
+        valid: {
+            "credentials": [{"presentedAttributes": {"role": "ICT", "gemeente": "Eindhoven"}}]
+        },
+        invalid: {
+            "credentials": [{"presentedAttributes": {"role": "Finance", "gemeente": "Eindhoven"}}]
+        }
+    };
+    
+    function clearOutputs() {
+        backendLogEl.innerHTML = '';
+        resultEl.textContent = '';
+        testEndpointBtn.disabled = true;
+        jwtDisplayEl.value = '';
+    }
 
-                const res = await response.json();
-                if (response.ok) {
-                    jwtToken = res.token;
-                    jwtDisplayEl.textContent = jwtToken;
-                    testEndpointBtn.disabled = false;
-                    resultEl.textContent = 'JWT received successfully.';
-                } else {
-                    resultEl.textContent = `Error getting JWT: ${JSON.stringify(res, null, 2)}`;
-                }
-            } catch (error) {
-                resultEl.textContent = `Error: ${error.message}`;
-            }
-        });
+    function log(message, statusClass = 'status-info') {
+        const entry = document.createElement('span');
+        entry.className = 'log-entry';
+        entry.innerHTML = `<span class="status ${statusClass}">●</span> ${message}`;
+        backendLogEl.appendChild(entry);
+    }
 
-        testEndpointBtn.addEventListener('click', async () => {
-            if (!jwtToken) {
-                resultEl.textContent = 'Please get a JWT first.';
-                return;
-            }
+    async function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-            resultEl.textContent = 'Testing /data/test endpoint...';
+    getJwtBtn.addEventListener('click', async () => {
+        clearOutputs();
+        const profile = userProfileEl.value;
+        const body = userProfiles[profile];
 
-            try {
-                // NOTE: Using the new port 9088 for the API calls
-                const response = await fetch('http://localhost:9088/data/test', {
-                    headers: {
-                        'Authorization': `Bearer ${jwtToken}`
-                    }
-                });
+        log(`Requesting JWT via APISIX gateway at ${APISIX_GATEWAY}/pap/auth/token`, 'status-send');
+        
+        try {
+            const response = await fetch(`${APISIX_GATEWAY}/pap/auth/token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
 
-                const res = await response.json();
+            const res = await response.json();
+            
+            if (response.ok) {
+                log('JWT received successfully.', 'status-success');
+                jwtToken = res.token;
+                jwtDisplayEl.value = jwtToken;
+                testEndpointBtn.disabled = false;
+            } else {
+                log(`Error getting JWT: ${res.error || JSON.stringify(res)}`, 'status-fail');
                 resultEl.textContent = JSON.stringify(res, null, 2);
-            } catch (error) {
-                resultEl.textContent = `Error: ${error.message}`;
             }
-        });
-    </script>
+        } catch (error) {
+            log(`Network error: ${error.message}`, 'status-fail');
+            resultEl.textContent = `Error: Could not connect to the APISIX gateway at ${APISIX_GATEWAY}. Is it running?`;
+        }
+    });
+
+    testEndpointBtn.addEventListener('click', async () => {
+        if (!jwtToken) return;
+
+        backendLogEl.innerHTML = ''; // Clear previous test logs
+        resultEl.textContent = 'Testing...';
+
+        log(`Request sent to APISIX gateway at ${APISIX_GATEWAY}/data/test`, 'status-send');
+        await sleep(300);
+        log('APISIX [jwt-auth]: Validating token...', 'status-eval');
+        await sleep(300);
+        log('APISIX [opa]: Sending attributes to OPA for decision...', 'status-eval');
+        await sleep(400);
+
+        try {
+            const response = await fetch(`${APISIX_GATEWAY}/data/test`, {
+                headers: { 'Authorization': `Bearer ${jwtToken}` }
+            });
+
+            const res = await response.json();
+
+            if (response.ok) {
+                log('OPA: Evaluation result: ALLOW', 'status-success');
+                await sleep(200);
+                log('APISIX: Forwarding request to upstream mock-data service...', 'status-info');
+                await sleep(200);
+                log('Final response received.', 'status-success');
+                resultEl.textContent = JSON.stringify(res, null, 2);
+            } else {
+                log('OPA: Evaluation result: DENY', 'status-fail');
+                await sleep(200);
+                log('APISIX: Returning 403 Forbidden to client.', 'status-fail');
+                log('Final response received.', 'status-fail');
+                resultEl.textContent = JSON.stringify(res, null, 2);
+            }
+        } catch (error) {
+            log(`Network error: ${error.message}`, 'status-fail');
+            resultEl.textContent = `Error: Could not connect to the APISIX gateway at ${APISIX_GATEWAY}. Is it running?`;
+        }
+    });
+
+</script>
 </body>
 </html>
