@@ -55,6 +55,4 @@ services:
   frontend:
     image: nginx:1.27
     volumes:
-      - ./index.html:/usr/share/nginx/html/index.html:ro
-    ports:
-      - "8081:80"
+      - ./:/usr/share/nginx/html:ro

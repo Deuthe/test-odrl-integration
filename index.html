@@ -5,24 +5,252 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ODRL Backend Visualizer</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f7f7f7; }
-        .container { max-width: 900px; margin: 2rem auto; padding: 1rem; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        h1, h2 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 0.5rem; }
-        .step { margin-bottom: 2rem; }
-        .step-header { display: flex; align-items: center; gap: 1rem; }
-        button { font-size: 1rem; padding: 0.5em 1em; border-radius: 6px; border: 1px solid #ccc; background-color: #f0f0f0; cursor: pointer; transition: background-color 0.2s; }
-        button:hover { background-color: #e0e0e0; }
-        button:disabled { cursor: not-allowed; opacity: 0.5; }
-        select, textarea { font-size: 1rem; padding: 0.5em; border-radius: 6px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
-        textarea { height: 120px; font-family: monospace; color: #555; }
-        .output-area { margin-top: 1rem; padding: 1em; border: 1px solid #ddd; border-radius: 6px; background-color: #fafafa; white-space: pre-wrap; font-family: monospace; min-height: 50px; }
-        .log-entry { display: block; margin-bottom: 0.5em; }
-        .log-entry .status { font-weight: bold; }
-        .log-entry .status-success { color: #28a745; }
-        .log-entry .status-fail { color: #dc3545; }
-        .log-entry .status-info { color: #17a2b8; }
-        .log-entry .status-send { color: #ffc107; }
-        .log-entry .status-eval { color: #6f42c1; }
+        /* --- GLOBAL STYLES --- */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; 
+            background-color: #eef2f5; /* Soft Gray-Blue Background to reduce glare */
+            color: #333;
+        }
+        
+        .container { 
+            max-width: 1600px; 
+            margin: 2rem auto; 
+            padding: 0 1rem;
+        }
+
+        h1 { 
+            color: #2c3e50; 
+            margin-bottom: 1.5rem; 
+            text-align: left;
+            padding-left: 0.5rem;
+        }
+
+        /* --- CARD COMPONENT STYLE --- */
+        .step { 
+            background-color: #fff; 
+            border: 1px solid #dce1e7; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.04); 
+            padding: 0; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Ensures content doesn't spill out */
+        }
+
+        /* Card Headers */
+        .step h2 { 
+            background-color: #f8f9fa; 
+            border-bottom: 1px solid #e9ecef;
+            padding: 1rem 1.25rem;
+            margin: 0; 
+            font-size: 1.1rem; 
+            color: #495057;
+            font-weight: 600;
+        }
+
+        /* Content Wrapper for Padding inside cards */
+        .step-content {
+            padding: 1.25rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .step-header { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+
+        /* --- CONTROLS & INPUTS --- */
+        button { 
+            font-size: 0.95rem; 
+            font-weight: 600;
+            padding: 0.6em 1.2em; 
+            border-radius: 6px; 
+            border: 1px solid #ced4da; 
+            background-color: #fff; 
+            color: #495057;
+            cursor: pointer; 
+            transition: all 0.2s; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        button:hover { background-color: #f1f3f5; border-color: #adb5bd; }
+        button:active { transform: translateY(1px); }
+        button:disabled { cursor: not-allowed; opacity: 0.6; }
+        
+        /* Primary Action Buttons */
+        button#updatePolicyBtn, button#getJwtBtn, button#testEndpointBtn {
+            background-color: #0d6efd;
+            color: white;
+            border: 1px solid #0d6efd;
+        }
+        button#updatePolicyBtn:hover, button#getJwtBtn:hover, button#testEndpointBtn:hover {
+            background-color: #0b5ed7;
+        }
+        button#testEndpointBtn:disabled { background-color: #0d6efd; opacity: 0.5; border-color: transparent;}
+
+        select, textarea, input { 
+            font-size: 0.95rem; 
+            padding: 0.6em; 
+            border-radius: 6px; 
+            border: 1px solid #ced4da; 
+            width: 100%; 
+            box-sizing: border-box; 
+            font-family: inherit;
+        }
+        
+        /* Code Displays */
+        #jwtDisplay { 
+            height: 100px; 
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; 
+            font-size: 0.85rem;
+            color: #0d6efd;
+            background-color: #f8f9fa;
+            border-color: #dee2e6;
+        }
+        #policyEditor { 
+            min-height: 250px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; 
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        /* --- DARK TERMINAL STYLE (Logs & Results) --- */
+        .output-area { 
+            margin: 0; 
+            padding: 1em; 
+            border: 1px solid #333; 
+            border-radius: 6px; 
+            background-color: #1e1e1e; /* Dark background */
+            color: #d4d4d4; /* Light text */
+            white-space: pre-wrap; 
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; 
+            font-size: 0.85rem;
+            height: 100%;
+            min-height: 150px;
+            overflow-y: auto;
+        }
+
+        /* --- GRID LAYOUT --- */
+        .grid-wrapper {
+            display: grid;
+            gap: 1.5rem;
+            /* Layout: 60% Width for Diagram, 40% for Controls */
+            grid-template-columns: 1.5fr 1fr; 
+            /* Top row forced to 550px min-height for Diagram visibility */
+            grid-template-rows: minmax(550px, auto) auto 1fr; 
+            grid-template-areas:
+                "diagram jwt"    
+                "test policy"
+                "log result";    
+        }
+        
+        /* Diagram Area Logic */
+        #diagram-step { 
+            grid-area: diagram; 
+            height: 100%; 
+        }
+        
+        #diagramContainer { 
+            flex: 1; 
+            width: 100%; 
+            min-height: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            background-color: #ffffff;
+            border-bottom: 1px solid #eee; 
+        } 
+        
+        #diagramContainer svg { 
+            width: 100%; 
+            height: 100%; 
+            max-height: 100%; 
+            max-width: 100%;
+        }
+
+        #jwt-step { grid-area: jwt; }
+        #test-step { grid-area: test; }
+        #policy-step { grid-area: policy; }
+        #log-step { grid-area: log; }
+        #result-step { grid-area: result; }
+
+        /* Log Entry Styling */
+        .log-entry { display: block; margin-bottom: 0.25em; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .log-entry .status { font-weight: bold; margin-right: 8px; }
+        .log-entry .status-success { color: #4ade80; } /* Neon Green */
+        .log-entry .status-fail { color: #f87171; } /* Neon Red */
+        .log-entry .status-info { color: #38bdf8; } /* Neon Blue */
+        .log-entry .status-send { color: #facc15; } /* Neon Yellow */
+        .log-entry .status-eval { color: #c084fc; } /* Neon Purple */
+
+        /* --- SIMULATION MODAL (POPUP) --- */
+        .modal-overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); 
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            width: 90%;
+            max-width: 1100px;
+            height: 85%;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: popIn 0.25s ease-out;
+        }
+
+        .modal-header {
+            padding: 1rem 1.5rem;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 { margin: 0; color: #333; font-size: 1.25rem; }
+
+        .modal-body {
+            flex: 1;
+            padding: 1rem;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden; /* Contains the SVG */
+        }
+        
+        .modal-body svg {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            justify-content: flex-end;
+            background-color: #f8f9fa;
+        }
+
+        #modalStatus { font-weight: 600; color: #0d6efd; margin-right: 1rem; font-size: 1.1rem; }
+
+        @keyframes popIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -30,237 +258,320 @@
 <div class="container">
     <h1>ODRL Backend Visualizer</h1>
 
-    <!-- Step 1: Generate Custom JWT -->
-    <div class="step">
-        <h2>Step 1: Generate Custom JWT</h2>
-        <div class="step-header" style="gap: 0.5rem; flex-direction: column; align-items: stretch;">
-            <label for="jwtRoleSelect">Role:</label>
-            <select id="jwtRoleSelect">
-                <option value="ICT">ICT</option>
-                <option value="Admin">Admin</option>
-                <option value="Finance">Finance</option>
-                <option value="Researcher">Researcher</option>
-                <option value="Citizen">Citizen</option>
-            </select>
-            <label for="jwtGemeenteSelect">Gemeente:</label>
-            <select id="jwtGemeenteSelect">
-                <option value="Eindhoven">Eindhoven</option>
-                <option value="Amsterdam">Amsterdam</option>
-                <option value="Rotterdam">Rotterdam</option>
-                <option value="Utrecht">Utrecht</option>
-                <option value="Den Haag">Den Haag</option>
-            </select>
-            <button id="getJwtBtn">Get JWT</button>
+    <div class="grid-wrapper">
+
+        <div id="diagram-step" class="step">
+            <h2>Architecture Diagram</h2>
+            <div id="diagramContainer"></div>
         </div>
-        <p>Your JWT:</p>
-        <textarea id="jwtDisplay" readonly placeholder="JWT will appear here..."></textarea>
-    </div>
 
-    <!-- Step 2: Test Endpoint -->
-    <div class="step">
-        <h2>Step 2: Test Protected Endpoint</h2>
-        <div class="step-header">
-            <select id="resourceSelect">
-                <option value="airquality">Air Quality Data</option>
-                <option value="soundlevel">Sound Level Data</option>
-                <option value="traffic">Traffic Data</option>
-            </select>
-            <button id="testEndpointBtn" disabled>Test Selected Endpoint</button>
+        <div id="jwt-step" class="step">
+            <h2>Step 1: Generate Custom JWT</h2>
+            <div class="step-content">
+                <div class="step-header" style="gap: 0.5rem; flex-direction: column; align-items: stretch;">
+                    <label for="jwtRoleSelect">Role:</label>
+                    <select id="jwtRoleSelect">
+                        <option value="ICT">ICT</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Researcher">Researcher</option>
+                        <option value="Citizen">Citizen</option>
+                    </select>
+                    <label for="jwtGemeenteSelect">Gemeente:</label>
+                    <select id="jwtGemeenteSelect">
+                        <option value="Eindhoven">Eindhoven</option>
+                        <option value="Amsterdam">Amsterdam</option>
+                        <option value="Rotterdam">Rotterdam</option>
+                        <option value="Utrecht">Utrecht</option>
+                        <option value="Den Haag">Den Haag</option>
+                    </select>
+                    <button id="getJwtBtn">Get JWT</button>
+                </div>
+                <p style="margin:0; font-weight:600; color:#555;">Your JWT:</p>
+                <textarea id="jwtDisplay" readonly placeholder="JWT will appear here..."></textarea>
+            </div>
         </div>
-    </div>
 
-    <!-- Step 3: Live Policy Editor -->
-    <div class="step">
-        <h2>Step 3: Live Policy Editor</h2>
-        <p>Edit the ODRL policy below and click "Update Policy".</p>
-        <textarea id="policyEditor" rows="10" placeholder="ODRL Policy JSON"></textarea>
-        <button id="updatePolicyBtn">Update Policy</button>
-    </div>
+        <div id="test-step" class="step">
+            <h2>Step 2: Test Protected Endpoint</h2>
+            <div class="step-content">
+                <div class="step-header" style="flex-direction: column; align-items: stretch;">
+                    <select id="resourceSelect">
+                        <option value="airquality">Air Quality Data</option>
+                        <option value="soundlevel">Sound Level Data</option>
+                        <option value="traffic">Traffic Data</option>
+                    </select>
+                    <button id="testEndpointBtn" disabled>Test Selected Endpoint</button>
+                </div>
+            </div>
+        </div>
 
-    <!-- Step 4: Backend Log -->
-    <div class="step">
-        <h2>Step 4: Backend Log</h2>
-        <div id="backendLog" class="output-area"></div>
-    </div>
+        <div id="policy-step" class="step">
+            <h2>Step 3: Live Policy Editor</h2>
+            <div class="step-content">
+                <p style="margin:0; color:#666;">Edit the ODRL policy below and click "Update Policy".</p>
+                <textarea id="policyEditor" placeholder="ODRL Policy JSON"></textarea>
+                <button id="updatePolicyBtn">Update Policy</button>
+            </div>
+        </div>
 
-    <!-- Step 5: Final Result -->
-    <div class="step">
-        <h2>Step 5: Final Result</h2>
-        <pre id="result" class="output-area"></pre>
+        <div id="log-step" class="step">
+            <h2>Step 4: Backend Log</h2>
+            <div style="flex:1; display:flex; flex-direction:column; padding:0;">
+                <div id="backendLog" class="output-area" style="border:none; border-radius:0;"></div>
+            </div>
+        </div>
+
+        <div id="result-step" class="step">
+            <h2>Step 5: Final Result</h2>
+            <div style="flex:1; display:flex; flex-direction:column; padding:0;">
+                <pre id="result" class="output-area" style="border:none; border-radius:0;"></pre>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="simulationModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>ODRL Enforcement Simulation</h3>
+            <span id="modalStatus">Ready...</span>
+        </div>
+        <div class="modal-body" id="modalDiagramTarget">
+            </div>
+        <div class="modal-footer">
+            <button onclick="closeModal()">Close Simulation</button>
+        </div>
     </div>
 </div>
 
 <script>
+    // Element Refs
+    const diagramContainerEl = document.getElementById('diagramContainer');
+    const modalOverlay = document.getElementById('simulationModal');
+    const modalTarget = document.getElementById('modalDiagramTarget');
+    const modalStatus = document.getElementById('modalStatus');
+    
     const getJwtBtn = document.getElementById('getJwtBtn');
     const testEndpointBtn = document.getElementById('testEndpointBtn');
-    const updatePolicyBtn = document.getElementById('updatePolicyBtn'); // New button
-    const jwtRoleSelectEl = document.getElementById('jwtRoleSelect'); // New select
-    const jwtGemeenteSelectEl = document.getElementById('jwtGemeenteSelect'); // New select
+    const updatePolicyBtn = document.getElementById('updatePolicyBtn');
+    const jwtRoleSelectEl = document.getElementById('jwtRoleSelect');
+    const jwtGemeenteSelectEl = document.getElementById('jwtGemeenteSelect');
     const resourceSelectEl = document.getElementById('resourceSelect');
-    const policyEditorEl = document.getElementById('policyEditor'); // New editor
+    const policyEditorEl = document.getElementById('policyEditor');
     const jwtDisplayEl = document.getElementById('jwtDisplay');
     const backendLogEl = document.getElementById('backendLog');
     const resultEl = document.getElementById('result');
 
-    const APISIX_GATEWAY = 'http://192.168.2.131:9088';
-
+    // Config
+    const APISIX_GATEWAY_HTTP = 'http://192.168.2.131:9088';
     let jwtToken = null;
-
-    const currentPolicy = `
-{
-  "@context": "http://www.w3.org/ns/odrl.jsonld",
-  "@type": "Offer",
-  "uid": "eindhoven-ict-2025",
-  "permission": [
-    {
-      "action": "read",
-      "target": "http://datastor/datasets/*",
-      "constraint": [
-        { "leftOperand": "role", "operator": "eq", "rightOperand": "ICT" },
-        { "leftOperand": "gemeente", "operator": "eq", "rightOperand": "Eindhoven" }
-      ]
-    }
-  ]
-}
-`; // Pre-fill with the current policy from policies/eindhoven-ict.json
+    const currentPolicy = `{"@context":"http://www.w3.org/ns/odrl.jsonld","@type":"Offer","uid":"eindhoven-ict-2025","permission":[{"action":"read","target":"http://datastor/datasets/*","constraint":[{"leftOperand":"role","operator":"eq","rightOperand":"ICT"},{"leftOperand":"gemeente","operator":"eq","rightOperand":"Eindhoven"}]}]}`;
     
-    // Initialize policy editor
-    policyEditorEl.value = JSON.stringify(JSON.parse(currentPolicy), null, 2);
+    // --- SVG & Modal Logic ---
+    let svgDoc;
+    const highlightColor = "#007bff"; 
+    const successColor = "#28a745"; 
+    const failColor = "#dc3545"; 
 
-    function clearOutputs() {
-        backendLogEl.innerHTML = '';
-        resultEl.textContent = '';
-        testEndpointBtn.disabled = true;
-        jwtDisplayEl.value = '';
+    async function loadDiagram() {
+        try {
+            const response = await fetch('./architecture.svg');
+            const svgText = await response.text();
+            diagramContainerEl.innerHTML = svgText;
+            svgDoc = diagramContainerEl.querySelector('svg');
+            
+            // Force responsive attributes if missing
+            if (svgDoc) {
+                svgDoc.setAttribute('width', '100%');
+                svgDoc.setAttribute('height', '100%');
+                svgDoc.style.width = '100%';
+                svgDoc.style.height = '100%';
+            }
+        } catch (e) {
+            diagramContainerEl.textContent = "Error loading architecture diagram.";
+        }
     }
 
-    function log(message, statusClass = 'status-info') {
-        const entry = document.createElement('span');
-        entry.className = 'log-entry';
-        entry.innerHTML = `<span class="status ${statusClass}">●</span> ${message}`;
-        backendLogEl.appendChild(entry);
+    // Function to move SVG to Modal
+    function openModal() {
+        if(svgDoc) {
+            modalTarget.appendChild(svgDoc);
+            modalOverlay.style.display = 'flex';
+        }
     }
 
-    async function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    // Function to move SVG back to Dashboard
+    window.closeModal = function() {
+        if(svgDoc) {
+            diagramContainerEl.appendChild(svgDoc);
+            modalOverlay.style.display = 'none';
+        }
+    };
+
+    function highlight(id, color, isPath = false) {
+        if (!svgDoc) return;
+        const el = svgDoc.getElementById(id);
+        if (el) {
+            if (isPath) {
+                el.style.stroke = color;
+                el.style.markerEnd = `url(#arrow${color === successColor ? '-success' : color === failColor ? '-fail' : ''})`;
+            } else {
+                el.querySelector('rect').style.fill = color;
+            }
+        }
     }
+    
+    function resetDiagram() {
+        if (!svgDoc) return;
+        ['component-client', 'component-apisix', 'component-pap', 'component-opa', 'component-mockdata'].forEach(id => {
+            const el = svgDoc.getElementById(id);
+            if(el) el.querySelector('rect').style.fill = '#fff';
+        });
+        ['path-client-apisix', 'path-apisix-pap', 'path-pap-opa', 'path-opa-pap', 'path-pap-mockdata', 'path-pap-client-fail'].forEach(id => {
+            const el = svgDoc.getElementById(id);
+            if (el) {
+                el.style.stroke = '#333';
+                el.style.markerEnd = 'url(#arrow)';
+            }
+        });
+    }
+
+    async function animateDiagram(success) {
+        resetDiagram();
+        const steps = [
+            { id: 'component-client', delay: 200, text: "Client sends Request..." },
+            { id: 'path-client-apisix', delay: 400, text: "Routing to Gateway..." },
+            { id: 'component-apisix', delay: 400, text: "Gateway Intercepts..." },
+            { id: 'path-apisix-pap', delay: 400, text: "Forwarding to PAP..." },
+            { id: 'component-pap', delay: 400, text: "PAP Processing..." },
+            { id: 'path-pap-opa', delay: 400, text: "Querying OPA Policy..." },
+            { id: 'component-opa', delay: 400, text: "OPA Decision..." },
+            { id: 'path-opa-pap', delay: 400, text: "Decision Received..." },
+        ];
+
+        for (const step of steps) {
+            if(modalStatus) modalStatus.innerText = step.text;
+            await new Promise(resolve => setTimeout(resolve, step.delay));
+            highlight(step.id, highlightColor, step.id.startsWith('path'));
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 400));
+        if (success) {
+            if(modalStatus) {
+                modalStatus.innerText = "Access Granted! Serving Data.";
+                modalStatus.style.color = successColor;
+            }
+            highlight('path-pap-mockdata', successColor, true);
+            highlight('component-mockdata', successColor);
+        } else {
+            if(modalStatus) {
+                modalStatus.innerText = "Access Denied by ODRL Policy.";
+                modalStatus.style.color = failColor;
+            }
+            highlight('path-pap-client-fail', failColor, true);
+        }
+    }
+
+    // --- Standard App Logic ---
+    async function fetchLogs() {
+        try {
+            const response = await fetch(`${APISIX_GATEWAY_HTTP}/pap/logs`);
+            if (response.ok) {
+                const logs = await response.json();
+                logs.forEach(logEntry => {
+                    const entry = document.createElement('span');
+                    entry.className = 'log-entry';
+                    entry.innerHTML = `<span class="status ${logEntry.statusClass}">●</span> ${logEntry.message}`;
+                    backendLogEl.appendChild(entry);
+                    backendLogEl.scrollTop = backendLogEl.scrollHeight;
+                });
+            }
+        } catch (e) {}
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        loadDiagram();
+        policyEditorEl.value = JSON.stringify(JSON.parse(currentPolicy), null, 2);
+        setInterval(fetchLogs, 1500);
+    });
 
     getJwtBtn.addEventListener('click', async () => {
-        clearOutputs();
-        const role = jwtRoleSelectEl.value; // Read from select
-        const gemeente = jwtGemeenteSelectEl.value; // Read from select
+        const role = jwtRoleSelectEl.value;
+        const gemeente = jwtGemeenteSelectEl.value;
+        const body = { "credentials": [{"presentedAttributes": {"role": role, "gemeente": gemeente}}] };
 
-        const body = {
-            "credentials": [{"presentedAttributes": {"role": role, "gemeente": gemeente}}]
-        };
-
-        log(`Requesting JWT for role: "${role}", gemeente: "${gemeente}" via APISIX gateway at ${APISIX_GATEWAY}/pap/auth/token`, 'status-send');
-        
         try {
-            const response = await fetch(`${APISIX_GATEWAY}/pap/auth/token`, {
+            const response = await fetch(`${APISIX_GATEWAY_HTTP}/pap/auth/token`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-
             const res = await response.json();
-            
             if (response.ok) {
-                log('JWT received successfully.', 'status-success');
                 jwtToken = res.token;
                 jwtDisplayEl.value = jwtToken;
                 testEndpointBtn.disabled = false;
             } else {
-                log(`Error getting JWT: ${res.error || JSON.stringify(res)}`, 'status-fail');
                 resultEl.textContent = JSON.stringify(res, null, 2);
             }
         } catch (error) {
-            log(`Network error: ${error.message}`, 'status-fail');
-            resultEl.textContent = `Error: Could not connect to the APISIX gateway at ${APISIX_GATEWAY}. Is it running?`;
+            resultEl.textContent = `Error: Could not connect to the APISIX gateway.`;
         }
     });
 
-    // New event listener for updating policy
     updatePolicyBtn.addEventListener('click', async () => {
-        clearOutputs();
         const policyJson = policyEditorEl.value;
-        
-        log(`Updating policy via APISIX gateway at ${APISIX_GATEWAY}/pap/policies`, 'status-send');
-
         try {
-            // Validate JSON before sending
-            let parsedPolicy;
-            try {
-                parsedPolicy = JSON.parse(policyJson);
-            } catch (e) {
-                log(`Invalid JSON in policy editor: ${e.message}`, 'status-fail');
-                resultEl.textContent = `Invalid JSON: ${e.message}`;
-                return;
-            }
-
-            const response = await fetch(`${APISIX_GATEWAY}/pap/policies`, {
-                method: 'POST', // The PAP service expects POST for new policies
+            let parsedPolicy = JSON.parse(policyJson);
+            const response = await fetch(`${APISIX_GATEWAY_HTTP}/pap/policies`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(parsedPolicy)
             });
-
             const res = await response.json();
-
-            if (response.ok) {
-                log('Policy updated successfully.', 'status-success');
-            } else {
-                log(`Error updating policy: ${res.error || JSON.stringify(res)}`, 'status-fail');
+            if (!response.ok) {
                 resultEl.textContent = JSON.stringify(res, null, 2);
+            } else {
+                resultEl.textContent = "Policy update sent successfully.";
             }
         } catch (error) {
-            log(`Network error: ${error.message}`, 'status-fail');
-            resultEl.textContent = `Error: Could not connect to the APISIX gateway at ${APISIX_GATEWAY}. Is it running?`;
+            resultEl.textContent = `Could not update policy. Is the JSON valid?`;
         }
     });
 
     testEndpointBtn.addEventListener('click', async () => {
         if (!jwtToken) return;
+        
+        // 1. Open the Modal immediately
+        openModal();
+        modalStatus.innerText = "Initiating Request...";
+        modalStatus.style.color = "#0d6efd";
+        resetDiagram();
 
         const resource = resourceSelectEl.value;
-        const testUrl = `${APISIX_GATEWAY}/data/${resource}`;
-
-        backendLogEl.innerHTML = ''; // Clear previous test logs
+        const testUrl = `${APISIX_GATEWAY_HTTP}/data/${resource}`;
         resultEl.textContent = 'Testing...';
-
-        log(`Request sent to APISIX gateway at ${testUrl}`, 'status-send');
-        await sleep(300);
-        log('APISIX [jwt-auth]: Validating token...', 'status-eval');
-        await sleep(300);
-        log('PAP Service: Querying OPA for decision...', 'status-eval');
-        await sleep(400);
 
         try {
             const response = await fetch(testUrl, {
                 headers: { 'Authorization': `Bearer ${jwtToken}` }
             });
-
             const res = await response.json();
-
-            if (response.ok) {
-                log('OPA: Evaluation result: ALLOW', 'status-success');
-                await sleep(200);
-                log('PAP Service: Proxying request to upstream mock-data service...', 'status-info');
-                await sleep(200);
-                log('Final response received.', 'status-success');
-                resultEl.textContent = JSON.stringify(res, null, 2);
-            } else {
-                log('OPA: Evaluation result: DENY', 'status-fail');
-                await sleep(200);
-                log('PAP Service: Returning 403 Forbidden to client.', 'status-fail');
-                log('Final response received.', 'status-fail');
-                resultEl.textContent = JSON.stringify(res, null, 2);
-            }
+            resultEl.textContent = JSON.stringify(res, null, 2);
+            
+            // 2. Run animation inside the modal
+            animateDiagram(response.ok);
+            
         } catch (error) {
-            log(`Network error: ${error.message}`, 'status-fail');
-            resultEl.textContent = `Error: Could not connect to the APISIX gateway at ${APISIX_GATEWAY}. Is it running?`;
+            resultEl.textContent = `Error: Could not connect to the APISIX gateway.`;
+            modalStatus.innerText = "Connection Error!";
+            modalStatus.style.color = failColor;
+            animateDiagram(false);
         }
     });
-
 </script>
+
 </body>
 </html>
