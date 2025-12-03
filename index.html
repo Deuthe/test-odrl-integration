@@ -9,8 +9,8 @@
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             margin: 0; 
-            background-color: #eef2f5; /* Soft Gray-Blue Background to reduce glare */
-            color: #333;
+            background-color: #282c34; /* Dark background */
+            color: #abb2bf; /* Light text */
         }
         
         .container { 
@@ -20,7 +20,7 @@
         }
 
         h1 { 
-            color: #2c3e50; 
+            color: #e0e0e0; /* Lighter heading color */
             margin-bottom: 1.5rem; 
             text-align: left;
             padding-left: 0.5rem;
@@ -28,24 +28,24 @@
 
         /* --- CARD COMPONENT STYLE --- */
         .step { 
-            background-color: #fff; 
-            border: 1px solid #dce1e7; 
+            background-color: #3e4451; /* Darker card background */
+            border: 1px solid #4b5263; /* Darker border */
             border-radius: 12px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.04); 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2); /* More prominent shadow */
             padding: 0; 
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* Ensures content doesn't spill out */
+            overflow: hidden; 
         }
 
         /* Card Headers */
         .step h2 { 
-            background-color: #f8f9fa; 
-            border-bottom: 1px solid #e9ecef;
+            background-color: #31363f; /* Darker header background */
+            border-bottom: 1px solid #4b5263; /* Darker border */
             padding: 1rem 1.25rem;
             margin: 0; 
             font-size: 1.1rem; 
-            color: #495057;
+            color: #e0e6f0; /* Lighter text for headers */
             font-weight: 600;
         }
 
@@ -66,33 +66,35 @@
             font-weight: 600;
             padding: 0.6em 1.2em; 
             border-radius: 6px; 
-            border: 1px solid #ced4da; 
-            background-color: #fff; 
-            color: #495057;
+            border: 1px solid #5c636e; /* Darker border */
+            background-color: #4b5263; /* Darker background */
+            color: #e0e6f0; /* Lighter text */
             cursor: pointer; 
             transition: all 0.2s; 
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
         }
-        button:hover { background-color: #f1f3f5; border-color: #adb5bd; }
+        button:hover { background-color: #5c636e; border-color: #6c757d; }
         button:active { transform: translateY(1px); }
-        button:disabled { cursor: not-allowed; opacity: 0.6; }
+        button:disabled { cursor: not-allowed; opacity: 0.4; background-color: #4b5263; color: #abb2bf; } /* Adjusted disabled state */
         
         /* Primary Action Buttons */
         button#updatePolicyBtn, button#getJwtBtn, button#testEndpointBtn {
-            background-color: #0d6efd;
-            color: white;
-            border: 1px solid #0d6efd;
+            background-color: #61afef; /* Lighter blue for primary */
+            color: #282c34; /* Dark text on primary */
+            border: 1px solid #61afef;
         }
         button#updatePolicyBtn:hover, button#getJwtBtn:hover, button#testEndpointBtn:hover {
-            background-color: #0b5ed7;
+            background-color: #52a0e0; /* Darker hover for primary */
         }
-        button#testEndpointBtn:disabled { background-color: #0d6efd; opacity: 0.5; border-color: transparent;}
+        button#testEndpointBtn:disabled { background-color: #61afef; opacity: 0.3; border-color: transparent; color: #282c34;}
 
         select, textarea, input { 
             font-size: 0.95rem; 
             padding: 0.6em; 
             border-radius: 6px; 
-            border: 1px solid #ced4da; 
+            border: 1px solid #5c636e; /* Darker border */
+            background-color: #3e4451; /* Darker background */
+            color: #abb2bf; /* Lighter text */
             width: 100%; 
             box-sizing: border-box; 
             font-family: inherit;
@@ -103,24 +105,27 @@
             height: 100px; 
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; 
             font-size: 0.85rem;
-            color: #0d6efd;
-            background-color: #f8f9fa;
-            border-color: #dee2e6;
+            color: #61afef; /* Lighter blue for JWT */
+            background-color: #21252b; /* Darker background */
+            border-color: #3b4048; /* Darker border */
         }
         #policyEditor { 
             min-height: 250px;
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; 
             font-size: 0.9rem;
             line-height: 1.4;
+            color: #abb2bf; /* Lighter text for policy editor */
+            background-color: #21252b; /* Darker background */
+            border-color: #3b4048; /* Darker border */
         }
 
         /* --- DARK TERMINAL STYLE (Logs & Results) --- */
         .output-area { 
             margin: 0; 
             padding: 1em; 
-            border: 1px solid #333; 
+            border: 1px solid #3b4048; /* Darker border, consistent with code displays */
             border-radius: 6px; 
-            background-color: #1e1e1e; /* Dark background */
+            background-color: #21252b; /* Slightly darker background, consistent with code displays */
             color: #d4d4d4; /* Light text */
             white-space: pre-wrap; 
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; 
@@ -134,21 +139,25 @@
         .grid-wrapper {
             display: grid;
             gap: 1.5rem;
-            /* Layout: 60% Width for Diagram, 40% for Controls */
-            grid-template-columns: 1.5fr 1fr; 
-            /* Top row forced to 550px min-height for Diagram visibility */
-            grid-template-rows: minmax(550px, auto) auto 1fr; 
             grid-template-areas:
-                "diagram jwt"    
-                "test policy"
-                "log result";    
+                "policy log"      
+                "jwt test"        
+                "result result";  
+            grid-template-columns: 1fr 1fr; 
+            grid-template-rows: auto auto 1fr; 
+        }
+
+        #log-step {
+            /* min-height was removed to avoid expansion issues */
+        }
+        .log-container {
+            height: 100%; /* Make the container fill its parent */
+            overflow: hidden; /* Hide any overflow that might prevent backendLog from scrolling */
+            max-height: 300px; /* Constrain the height of the log area */
         }
         
         /* Diagram Area Logic */
-        #diagram-step { 
-            grid-area: diagram; 
-            height: 100%; 
-        }
+
         
         #diagramContainer { 
             flex: 1; 
@@ -260,13 +269,26 @@
 
     <div class="grid-wrapper">
 
-        <div id="diagram-step" class="step">
-            <h2>Architecture Diagram</h2>
-            <div id="diagramContainer"></div>
+
+
+        <div id="policy-step" class="step">
+            <h2>Step 1: Live Policy Editor</h2>
+            <div class="step-content">
+                <p style="margin:0; color:#666;">Edit the ODRL policy below and click "Update Policy".</p>
+                <textarea id="policyEditor" placeholder="ODRL Policy JSON"></textarea>
+                <button id="updatePolicyBtn">Update Policy</button>
+            </div>
+        </div>
+
+        <div id="log-step" class="step">
+            <h2>Step 2: Backend Log</h2>
+            <div class="log-container" style="flex:1; display:flex; flex-direction:column; padding:0;">
+                <div id="backendLog" class="output-area" style="border:none; border-radius:0;"></div>
+            </div>
         </div>
 
         <div id="jwt-step" class="step">
-            <h2>Step 1: Generate Custom JWT</h2>
+            <h2>Step 3: Generate Custom JWT</h2>
             <div class="step-content">
                 <div class="step-header" style="gap: 0.5rem; flex-direction: column; align-items: stretch;">
                     <label for="jwtRoleSelect">Role:</label>
@@ -293,7 +315,7 @@
         </div>
 
         <div id="test-step" class="step">
-            <h2>Step 2: Test Protected Endpoint</h2>
+            <h2>Step 4: Test Protected Endpoint</h2>
             <div class="step-content">
                 <div class="step-header" style="flex-direction: column; align-items: stretch;">
                     <select id="resourceSelect">
@@ -303,22 +325,6 @@
                     </select>
                     <button id="testEndpointBtn" disabled>Test Selected Endpoint</button>
                 </div>
-            </div>
-        </div>
-
-        <div id="policy-step" class="step">
-            <h2>Step 3: Live Policy Editor</h2>
-            <div class="step-content">
-                <p style="margin:0; color:#666;">Edit the ODRL policy below and click "Update Policy".</p>
-                <textarea id="policyEditor" placeholder="ODRL Policy JSON"></textarea>
-                <button id="updatePolicyBtn">Update Policy</button>
-            </div>
-        </div>
-
-        <div id="log-step" class="step">
-            <h2>Step 4: Backend Log</h2>
-            <div style="flex:1; display:flex; flex-direction:column; padding:0;">
-                <div id="backendLog" class="output-area" style="border:none; border-radius:0;"></div>
             </div>
         </div>
 
@@ -348,7 +354,6 @@
 
 <script>
     // Element Refs
-    const diagramContainerEl = document.getElementById('diagramContainer');
     const modalOverlay = document.getElementById('simulationModal');
     const modalTarget = document.getElementById('modalDiagramTarget');
     const modalStatus = document.getElementById('modalStatus');
@@ -375,12 +380,13 @@
     const successColor = "#28a745"; 
     const failColor = "#dc3545"; 
 
-    async function loadDiagram() {
+    async function loadSvgForModal() {
+        if (svgDoc) return; // Only load once
         try {
             const response = await fetch('./architecture.svg');
             const svgText = await response.text();
-            diagramContainerEl.innerHTML = svgText;
-            svgDoc = diagramContainerEl.querySelector('svg');
+            modalTarget.innerHTML = svgText;
+            svgDoc = modalTarget.querySelector('svg');
             
             // Force responsive attributes if missing
             if (svgDoc) {
@@ -390,24 +396,24 @@
                 svgDoc.style.height = '100%';
             }
         } catch (e) {
-            diagramContainerEl.textContent = "Error loading architecture diagram.";
+            modalTarget.textContent = "Error loading architecture diagram.";
         }
     }
 
     // Function to move SVG to Modal
-    function openModal() {
-        if(svgDoc) {
-            modalTarget.appendChild(svgDoc);
-            modalOverlay.style.display = 'flex';
+    async function openModal() {
+        if(!svgDoc) {
+            await loadSvgForModal();
         }
+        modalOverlay.style.display = 'flex';
     }
 
     // Function to move SVG back to Dashboard
     window.closeModal = function() {
-        if(svgDoc) {
-            diagramContainerEl.appendChild(svgDoc);
-            modalOverlay.style.display = 'none';
+        if(svgDoc) { // Only clear if SVG was loaded
+            modalTarget.innerHTML = ''; // Clear the SVG from the modal
         }
+        modalOverlay.style.display = 'none';
     };
 
     function highlight(id, color, isPath = false) {
@@ -492,7 +498,6 @@
     }
     
     document.addEventListener('DOMContentLoaded', () => {
-        loadDiagram();
         policyEditorEl.value = JSON.stringify(JSON.parse(currentPolicy), null, 2);
         setInterval(fetchLogs, 1500);
     });

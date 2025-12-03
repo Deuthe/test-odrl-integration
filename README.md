@@ -11,7 +11,28 @@ The flow is as follows:
 
 ---
 
-## 🏛️ Architecture
+## Recent Changes and Enhancements
+
+This section outlines the significant updates and improvements made to the project:
+
+### File and Codebase Cleanup:
+*   **Duplicate Data Files Removed:** Redundant `airquality_data_kennedylaan.json`, `soundlevel_data_kennedylaan.json`, and `traffic_data_kennedylaan.json` files were removed from the root directory. The canonical versions reside in `mock-data/`.
+*   **Unused Scripts Removed:** `repo_dump.txt`, `generate-jwt.js`, and `generate-jwt-invalid.js` (standalone utility scripts) have been removed to streamline the project.
+
+### Frontend UI/UX Improvements:
+*   **Architecture Diagram Relocation:** The system architecture diagram is no longer displayed on the main dashboard. It now appears dynamically within a popup modal when the "Test Protected Endpoint" button is clicked, providing contextual visualization during the simulation.
+*   **Reordered Interaction Steps:** The dashboard's interactive steps have been reordered to better emphasize policy governance:
+    1.  **Live Policy Editor:** Define and update ODRL policies.
+    2.  **Backend Log:** Monitor real-time interactions with the backend services.
+    3.  **Generate Custom JWT:** Create JSON Web Tokens with specified attributes.
+    4.  **Test Protected Endpoint:** Simulate access requests to data resources.
+    5.  **Final Result:** View the outcome of the access request.
+*   **Scrollable Backend Log:** The "Backend Log" area is now scrollable, preventing content overflow and maintaining layout integrity when extensive log data is generated.
+*   **Dark Mode Theme:** The entire interactive dashboard features a new dark mode theme for improved visual comfort and modern aesthetics.
+
+---
+
+## Architecture
 
 This environment is composed of several microservices orchestrated by `docker-compose.yml`:
 
@@ -29,7 +50,7 @@ This environment is composed of several microservices orchestrated by `docker-co
 
 - **etcd**: A key-value store that holds all of APISIX's dynamic configuration (routes, consumers, etc.).
 
-- **Mock Data**: An NGINX server that hosts the static `data.json` file, representing the protected resource.
+- **Mock Data**: An NGINX server that hosts various static JSON data files (e.g., `airquality_data_kennedylaan.json`, `soundlevel_data_kennedylaan.json`, `traffic_data_kennedylaan.json`), representing protected resources.
 
 - **Frontend**: An NGINX server that hosts the `index.html` dashboard (served via APISIX).
 
@@ -42,7 +63,7 @@ This environment is composed of several microservices orchestrated by `docker-co
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 Getting the environment running is a simple two-step process.
 
@@ -66,30 +87,49 @@ Wait for the script to complete. You should see "Initialization complete!" at th
 
 ---
 
-## 🧪 Usage and Testing
+## Usage and Testing
 
 The entire system can now be tested using the interactive web dashboard. The script automatically configured APISIX to serve the dashboard.
 
 **Access the dashboard here:** [http://192.168.2.131:9088](http://192.168.2.131:9088)
 *(Note: Use your VM's IP address if you are not running this on localhost)*
 
+### Understanding the Interactive Dashboard
+
+The dashboard provides a guided workflow to interact with the ODRL authorization system. The steps are designed to emphasize policy governance:
+
+1.  **Step 1: Live Policy Editor**: This section allows you to directly edit the ODRL policy that governs access to resources. Any changes made here can be pushed to the PAP service, which then translates and loads them into OPA.
+2.  **Step 2: Backend Log**: Located next to the Policy Editor, this area displays real-time logs from the backend services, providing immediate feedback on policy updates, JWT generation, and access requests. It is now scrollable to accommodate extensive log data.
+3.  **Step 3: Generate Custom JWT**: Here, you can generate a JSON Web Token (JWT) with specific `role` and `gemeente` attributes. This JWT will be used to authenticate and authorize requests to protected endpoints.
+4.  **Step 4: Test Protected Endpoint**: Select a data resource (e.g., Air Quality Data) and use the generated JWT to attempt access. During this step, a popup will appear, visualizing the request flow through the system architecture (Client -> APISIX -> PAP -> OPA -> Mock Data).
+5.  **Step 5: Final Result**: This panel displays the final response from the protected endpoint, indicating whether access was granted or denied, and returning the requested data or an error message.
+
+The dashboard is styled with a permanent dark mode theme for a modern and comfortable user experience.
+
 ### Test 1: The "Allowed" Scenario
-1.  Make sure the user profile dropdown is set to **"Valid User (role: ICT, gemeente: Eindhoven)"**.
-2.  Click **Get JWT**.
-3.  Select a resource from the data dropdown (e.g., **"Air Quality Data"**).
-4.  Click **Test Selected Endpoint**.
-5.  **Observe the result:** The "Backend Log" will show the step-by-step flow, and the "Final Result" will show the protected JSON data for the selected resource.
+1.  In **Step 1: Live Policy Editor**, ensure the default policy allows `role: ICT` from `gemeente: Eindhoven` to read resources. If you've modified it, click "Update Policy".
+2.  In **Step 3: Generate Custom JWT**, set the role to **"ICT"** and gemeente to **"Eindhoven"**.
+3.  Click **Get JWT**.
+4.  In **Step 4: Test Protected Endpoint**, select a resource (e.g., **"Air Quality Data"**).
+5.  Click **Test Selected Endpoint**.
+6.  **Observe the result:**
+    *   **Step 2: Backend Log** will show the step-by-step authorization flow.
+    *   **Step 5: Final Result** will display the protected JSON data for the selected resource.
+    *   An architecture diagram popup will visualize the successful request flow.
 
 ### Test 2: The "Denied" Scenario
-1.  Change the user profile dropdown to **"Invalid User (role: Finance, gemeente: Eindhoven)"**.
+1.  In **Step 3: Generate Custom JWT**, set the role to **"Finance"** (or any other role not allowed by the policy) and gemeente to **"Eindhoven"**.
 2.  Click **Get JWT**.
-3.  Select any data resource.
+3.  In **Step 4: Test Protected Endpoint**, select any data resource.
 4.  Click **Test Selected Endpoint**.
-5.  **Observe the result:** The "Backend Log" will show the `pap` service denying the request, and the "Final Result" will show an "Access Denied" error.
+5.  **Observe the result:**
+    *   **Step 2: Backend Log** will show the `pap` service denying the request.
+    *   **Step 5: Final Result** will display an "Access Denied" error.
+    *   An architecture diagram popup will visualize the denied request flow.
 
 ---
 
-## 👨‍💻 Manual Testing (CLI)
+## Manual Testing (CLI)
 
 You can also test the entire workflow directly from your command line using `curl`.
 
@@ -120,7 +160,7 @@ curl -i http://192.168.2.131:9088/data/airquality -H "Authorization: Bearer $TOK
 
 ---
 
-## 🧹 Cleanup
+## Cleanup
 
 To stop and remove all running containers and networks:
 
